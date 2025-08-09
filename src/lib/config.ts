@@ -200,6 +200,8 @@ async function initConfig() {
               Number(process.env.NEXT_PUBLIC_SEARCH_MAX_PAGE) || 5,
             SiteInterfaceCacheTime: fileConfig.cache_time || 7200,
             ImageProxy: process.env.NEXT_PUBLIC_IMAGE_PROXY || '',
+            DoubanProxyType:
+              process.env.NEXT_PUBLIC_DOUBAN_PROXY_TYPE || 'direct',
             DoubanProxy: process.env.NEXT_PUBLIC_DOUBAN_PROXY || '',
             DisableYellowFilter:
               process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true',
@@ -248,6 +250,7 @@ async function initConfig() {
           Number(process.env.NEXT_PUBLIC_SEARCH_MAX_PAGE) || 5,
         SiteInterfaceCacheTime: fileConfig.cache_time || 7200,
         ImageProxy: process.env.NEXT_PUBLIC_IMAGE_PROXY || '',
+        DoubanProxyType: process.env.NEXT_PUBLIC_DOUBAN_PROXY_TYPE || 'direct',
         DoubanProxy: process.env.NEXT_PUBLIC_DOUBAN_PROXY || '',
         DisableYellowFilter:
           process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true',
@@ -303,6 +306,8 @@ export async function getConfig(): Promise<AdminConfig> {
       process.env.NEXT_PUBLIC_ENABLE_REGISTER === 'true';
     adminConfig.SiteConfig.ImageProxy =
       process.env.NEXT_PUBLIC_IMAGE_PROXY || '';
+    adminConfig.SiteConfig.DoubanProxyType =
+      process.env.NEXT_PUBLIC_DOUBAN_PROXY_TYPE || 'direct';
     adminConfig.SiteConfig.DoubanProxy =
       process.env.NEXT_PUBLIC_DOUBAN_PROXY || '';
     adminConfig.SiteConfig.DisableYellowFilter =
@@ -316,14 +321,24 @@ export async function getConfig(): Promise<AdminConfig> {
     );
 
     apiSiteEntries.forEach(([key, site]) => {
-      sourceConfigMap.set(key, {
-        key,
-        name: site.name,
-        api: site.api,
-        detail: site.detail,
-        from: 'config',
-        disabled: false,
-      });
+      const existingSource = sourceConfigMap.get(key);
+      if (existingSource) {
+        // 如果已存在，只覆盖 name、api、detail 和 from
+        existingSource.name = site.name;
+        existingSource.api = site.api;
+        existingSource.detail = site.detail;
+        existingSource.from = 'config';
+      } else {
+        // 如果不存在，创建新条目
+        sourceConfigMap.set(key, {
+          key,
+          name: site.name,
+          api: site.api,
+          detail: site.detail,
+          from: 'config',
+          disabled: false,
+        });
+      }
     });
 
     // 检查现有源是否在 fileConfig.api_site 中，如果不在则标记为 custom
@@ -337,34 +352,15 @@ export async function getConfig(): Promise<AdminConfig> {
     // 将 Map 转换回数组
     adminConfig.SourceConfig = Array.from(sourceConfigMap.values());
 
-    // 补全 CustomCategories
+    // 覆盖 CustomCategories
     const customCategories = fileConfig.custom_category || [];
-    const customCategoriesMap = new Map(
-      adminConfig.CustomCategories.map((c) => [c.query + c.type, c])
-    );
-
-    customCategories.forEach((category) => {
-      customCategoriesMap.set(category.query + category.type, {
-        name: category.name,
-        type: category.type,
-        query: category.query,
-        from: 'config',
-        disabled: false,
-      });
-    });
-
-    // 检查现有 CustomCategories 是否在 fileConfig.custom_categories 中，如果不在则标记为 custom
-    const customCategoriesKeys = new Set(
-      customCategories.map((c) => c.query + c.type)
-    );
-    customCategoriesMap.forEach((category) => {
-      if (!customCategoriesKeys.has(category.query + category.type)) {
-        category.from = 'custom';
-      }
-    });
-
-    // 将 Map 转换回数组
-    adminConfig.CustomCategories = Array.from(customCategoriesMap.values());
+    adminConfig.CustomCategories = customCategories.map((category) => ({
+      name: category.name,
+      type: category.type,
+      query: category.query,
+      from: 'config',
+      disabled: false,
+    }));
 
     const ownerUser = process.env.USERNAME || '';
     // 检查配置中的站长用户是否和 USERNAME 匹配，如果不匹配则降级为普通用户
@@ -446,6 +442,7 @@ export async function resetConfig() {
         Number(process.env.NEXT_PUBLIC_SEARCH_MAX_PAGE) || 5,
       SiteInterfaceCacheTime: fileConfig.cache_time || 7200,
       ImageProxy: process.env.NEXT_PUBLIC_IMAGE_PROXY || '',
+      DoubanProxyType: process.env.NEXT_PUBLIC_DOUBAN_PROXY_TYPE || 'direct',
       DoubanProxy: process.env.NEXT_PUBLIC_DOUBAN_PROXY || '',
       DisableYellowFilter:
         process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true',
